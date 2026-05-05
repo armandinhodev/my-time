@@ -16,7 +16,7 @@ import {
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useToast } from '@/contexts/ToastContext';
 import type { Course, Topic } from '@/types';
-import { Plus, ArrowLeft, Trash2, GripVertical, Clock } from 'lucide-react';
+import { Plus, ArrowLeft, Trash2, GripVertical, Clock, Pencil } from 'lucide-react';
 
 export function CourseDetailPage() {
   const { toast } = useToast();
@@ -29,7 +29,14 @@ export function CourseDetailPage() {
   const [newTopicMinutes, setNewTopicMinutes] = useState('25');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  
+
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
+  const [editTopicTitle, setEditTopicTitle] = useState('');
+  const [editTopicMinutes, setEditTopicMinutes] = useState('25');
+  const [isUpdating, setIsUpdating] = useState(false);
+
   // Confirm dialog state
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [topicToDelete, setTopicToDelete] = useState<string | null>(null);
@@ -89,6 +96,43 @@ export function CourseDetailPage() {
       });
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const openEditDialog = (topic: Topic) => {
+    setEditingTopic(topic);
+    setEditTopicTitle(topic.title);
+    setEditTopicMinutes(topic.estimatedMinutes.toString());
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateTopic = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTopic || !editTopicTitle.trim()) return;
+
+    setIsUpdating(true);
+    try {
+      await api.updateTopic(editingTopic.id, {
+        title: editTopicTitle,
+        estimatedMinutes: parseInt(editTopicMinutes) || 25,
+      });
+      setEditDialogOpen(false);
+      setEditingTopic(null);
+      await loadData();
+      toast({
+        title: 'Tema actualizado',
+        description: 'Los cambios se guardaron correctamente.',
+        variant: 'success',
+      });
+    } catch (err) {
+      console.error('Error updating topic:', err);
+      toast({
+        title: 'No pudimos actualizar el tema',
+        description: err instanceof Error ? err.message : 'Intentá nuevamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -235,6 +279,14 @@ export function CourseDetailPage() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  onClick={() => openEditDialog(topic)}
+                  title="Editar tema"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className="text-destructive"
                   onClick={() => openDeleteConfirm(topic.id)}
                 >
@@ -245,6 +297,46 @@ export function CourseDetailPage() {
           ))}
         </div>
       )}
+
+      {/* Edit Topic Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Tema</DialogTitle>
+            <DialogDescription>
+              Modificá los datos del tema
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateTopic}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Título</label>
+                <Input
+                  placeholder="Ej: Introducción a Hooks"
+                  value={editTopicTitle}
+                  onChange={(e) => setEditTopicTitle(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Minutos estimados</label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={editTopicMinutes}
+                  onChange={(e) => setEditTopicMinutes(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={isUpdating}>
+                {isUpdating ? 'Guardando...' : 'Guardar Cambios'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={confirmOpen}

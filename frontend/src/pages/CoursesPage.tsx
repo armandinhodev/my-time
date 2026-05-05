@@ -16,7 +16,7 @@ import {
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useToast } from '@/contexts/ToastContext';
 import type { Course } from '@/types';
-import { Plus, BookOpen, Trash2, Archive, ArchiveRestore } from 'lucide-react';
+import { Plus, BookOpen, Trash2, Archive, ArchiveRestore, Pencil } from 'lucide-react';
 
 export function CoursesPage() {
   const { toast } = useToast();
@@ -26,7 +26,14 @@ export function CoursesPage() {
   const [newCourseDescription, setNewCourseDescription] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  
+
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+
   // Confirm dialog state
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
@@ -79,6 +86,43 @@ export function CoursesPage() {
       });
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const openEditDialog = (course: Course) => {
+    setEditingCourse(course);
+    setEditTitle(course.title);
+    setEditDescription(course.description || '');
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCourse || !editTitle.trim()) return;
+
+    setIsUpdating(true);
+    try {
+      await api.updateCourse(editingCourse.id, {
+        title: editTitle,
+        description: editDescription || undefined,
+      });
+      setEditDialogOpen(false);
+      setEditingCourse(null);
+      await loadCourses();
+      toast({
+        title: 'Curso actualizado',
+        description: 'Los cambios se guardaron correctamente.',
+        variant: 'success',
+      });
+    } catch (err) {
+      console.error('Error updating course:', err);
+      toast({
+        title: 'No pudimos actualizar el curso',
+        description: err instanceof Error ? err.message : 'Intentá nuevamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -223,6 +267,15 @@ export function CoursesPage() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8"
+                      onClick={() => openEditDialog(course)}
+                      title="Editar curso"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
                       onClick={() => toggleArchiveCourse(course.id, course.status)}
                       title={course.status === 'archived' ? 'Reactivar curso' : 'Archivar curso'}
                     >
@@ -269,6 +322,44 @@ export function CoursesPage() {
           ))}
         </div>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Curso</DialogTitle>
+            <DialogDescription>
+              Modificá los datos del curso
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateCourse}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Título</label>
+                <Input
+                  placeholder="Ej: React Avanzado"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Descripción (opcional)</label>
+                <Input
+                  placeholder="Breve descripción del curso"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={isUpdating}>
+                {isUpdating ? 'Guardando...' : 'Guardar Cambios'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={confirmOpen}
