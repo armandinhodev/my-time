@@ -213,6 +213,18 @@ class ApiClient {
     });
   }
 
+  async getPomodoroState(): Promise<PomodoroState & { expired?: boolean }> {
+    return this.request('/pomodoro/state')
+  }
+
+  async pausePomodoro(): Promise<PomodoroState> {
+    return this.request('/pomodoro/pause', { method: 'POST' })
+  }
+
+  async resumePomodoro(): Promise<PomodoroState> {
+    return this.request('/pomodoro/resume', { method: 'POST' })
+  }
+
   async completePomodoro(payload: CompletePomodoroDto): Promise<{ studySession: StudySession; state: PomodoroState }> {
     return this.request('/pomodoro/complete', {
       method: 'POST',

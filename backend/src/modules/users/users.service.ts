@@ -26,9 +26,12 @@ export class UsersService {
       courseId: string;
       topicId?: string;
       mode: 'focus' | 'shortBreak' | 'longBreak';
+      status: 'running' | 'paused';
       startedAt: Date;
       endsAt: Date;
       durationSec: number;
+      remainingSec: number;
+      pausedAt?: Date | null;
     }
   ) {
     await this.userModel
@@ -50,6 +53,10 @@ export class UsersService {
 
   async clearActivePomodoro(id: string) {
     await this.userModel.findByIdAndUpdate(id, { $set: { activePomodoro: null } }).exec();
+  }
+
+  async updateActivePomodoro(id: string, activePomodoro: Record<string, unknown>) {
+    await this.userModel.findByIdAndUpdate(id, { $set: { activePomodoro } }).exec()
   }
 
   async getPomodoroStats(id: string) {

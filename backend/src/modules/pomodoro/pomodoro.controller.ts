@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -11,9 +11,26 @@ import { PomodoroService } from './pomodoro.service';
 export class PomodoroController {
   constructor(private readonly pomodoroService: PomodoroService) {}
 
+  @Get('state')
+  state(@CurrentUser() user: { userId: string }) {
+    return this.pomodoroService.state(user.userId);
+  }
+
   @Post('start')
   start(@CurrentUser() user: { userId: string }, @Body() payload: StartPomodoroDto) {
     return this.pomodoroService.start(user.userId, payload);
+  }
+
+  @Post('pause')
+  @HttpCode(200)
+  pause(@CurrentUser() user: { userId: string }) {
+    return this.pomodoroService.pause(user.userId);
+  }
+
+  @Post('resume')
+  @HttpCode(200)
+  resume(@CurrentUser() user: { userId: string }) {
+    return this.pomodoroService.resume(user.userId);
   }
 
   @Post('complete')

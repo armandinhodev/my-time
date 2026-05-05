@@ -3,8 +3,9 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/contexts/ToastContext';
 import type { Course, Topic, PomodoroMode } from '@/types';
-import { Bell, BellOff, Play, Square, Volume2, VolumeX } from 'lucide-react';
+import { Bell, BellOff, Pause, Play, Square, Volume2, VolumeX } from 'lucide-react';
 
 const MODES: { value: PomodoroMode; label: string; duration: number }[] = [
   { value: 'focus', label: 'Foco', duration: 25 * 60 },
@@ -21,6 +22,7 @@ interface TimerState {
   mode: PomodoroMode;
   durationSec: number;
   remainingSec: number;
+  status: 'running' | 'paused';
 }
 
 interface PomodoroPreferences {
@@ -126,6 +128,7 @@ function ToggleRow({
 }
 
 export function TimerPage() {
+  const { toast } = useToast();
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<string>('');
   const [selectedTopic, setSelectedTopic] = useState<string>('');
@@ -137,98 +140,162 @@ export function TimerPage() {
     endsAt: null,
     courseId: null,
     topicId: null,
-    mode: 'focus',
-    durationSec: MODES[0].duration,
-    remainingSec: MODES[0].duration,
+      mode: 'focus',
+      durationSec: MODES[0].duration,
+      remainingSec: MODES[0].duration,
+      status: 'running',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [preferences, setPreferences] = useState<PomodoroPreferences>(() => readPreferences());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const completionLockRef = useRef(false);
 
   useEffect(() => {
     window.localStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences));
   }, [preferences]);
 
   useEffect(() => {
-    api.listCourses().then((data) => {
-      setCourses(data.items);
-      if (data.items.length > 0 && !selectedCourse) {
-        setSelectedCourse(data.items[0].id);
-      }
-    });
-  }, []);
+    api.listCourses()
+      .then((data) => {
+        setCourses(data.items);
+        if (data.items.length > 0 && !selectedCourse) {
+          setSelectedCourse(data.items[0].id);
+        }
+      })
+      .catch((err) => {
+        console.error('Error loading courses:', err);
+        toast({
+          title: 'No pudimos cargar los cursos',
+          description: err instanceof Error ? err.message : 'Intentá nuevamente.',
+          variant: 'destructive',
+        });
+      });
+  }, [selectedCourse, toast]);
 
   useEffect(() => {
     if (selectedCourse) {
-      api.listTopics(selectedCourse).then(setTopics);
+      api.listTopics(selectedCourse)
+        .then(setTopics)
+        .catch((err) => {
+          console.error('Error loading topics:', err);
+          toast({
+            title: 'No pudimos cargar los temas',
+            description: err instanceof Error ? err.message : 'Intentá nuevamente.',
+            variant: 'destructive',
+          });
+        });
       setSelectedTopic('');
     }
-  }, [selectedCourse]);
+  }, [selectedCourse, toast]);
 
-  useEffect(() => {
-    const saved = localStorage.getItem('pomodoroState');
-    if (saved) {
-      try {
-        const state: TimerState = JSON.parse(saved);
-        if (state.active && state.endsAt) {
-          const now = Date.now();
-          const endsAt = new Date(state.endsAt).getTime();
-          const remaining = Math.max(0, Math.floor((endsAt - now) / 1000));
-          if (remaining > 0) {
-            setTimer({ ...state, remainingSec: remaining });
-            startInterval(remaining);
-          } else {
-            completeTimer(state);
-          }
-        }
-      } catch {
-        localStorage.removeItem('pomodoroState');
-      }
+  const syncTimerState = useCallback((nextState: TimerState) => {
+    setTimer(nextState)
+    if (nextState.active) {
+      localStorage.setItem('pomodoroState', JSON.stringify(nextState))
+    } else {
+      localStorage.removeItem('pomodoroState')
     }
-  }, []);
-
-  const startInterval = useCallback((duration: number) => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    
-    const endTime = Date.now() + duration * 1000;
-    
-    intervalRef.current = setInterval(() => {
-      const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
-      setTimer((prev) => ({ ...prev, remainingSec: remaining }));
-      
-      if (remaining <= 0) {
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        setTimer((prev) => {
-          completeTimer(prev);
-          return { ...prev, active: false, remainingSec: 0 };
-        });
-      }
-    }, 1000);
-  }, []);
+  }, [])
 
   const completeTimer = useCallback(async (state: TimerState) => {
     if (!state.courseId || !state.startedAt) return;
+    if (completionLockRef.current) return;
+    completionLockRef.current = true;
+    localStorage.removeItem('pomodoroState');
     
     try {
       const endedAt = new Date().toISOString();
       await api.completePomodoro({
         courseId: state.courseId,
         topicId: state.topicId || undefined,
+        mode: state.mode,
         startedAt: state.startedAt,
         endedAt,
         durationSec: state.durationSec - state.remainingSec,
       });
-      localStorage.removeItem('pomodoroState');
       if (preferences.soundEnabled) {
         playCompletionSound();
       }
       if (preferences.notificationsEnabled) {
         notifyCompletion(state.mode);
       }
+      toast({
+        title: 'Pomodoro completado',
+        description: 'La sesión quedó registrada correctamente.',
+        variant: 'success',
+      });
     } catch (err) {
       console.error('Error completing pomodoro:', err);
+      toast({
+        title: 'No pudimos completar el Pomodoro',
+        description: err instanceof Error ? err.message : 'Intentá nuevamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      completionLockRef.current = false;
     }
-  }, [preferences.notificationsEnabled, preferences.soundEnabled]);
+  }, [preferences.notificationsEnabled, preferences.soundEnabled, toast]);
+
+  const startInterval = useCallback((duration: number) => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+
+    const endTime = Date.now() + duration * 1000;
+
+    intervalRef.current = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+      setTimer((prev) => {
+        const nextState = { ...prev, remainingSec: remaining };
+        localStorage.setItem('pomodoroState', JSON.stringify(nextState));
+        return nextState;
+      });
+
+      if (remaining <= 0) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        setTimer((prev) => {
+          const finishedState = { ...prev, active: false, remainingSec: 0, status: 'running' as const };
+          void completeTimer(finishedState);
+          return finishedState;
+        });
+      }
+    }, 1000);
+  }, [completeTimer]);
+
+  useEffect(() => {
+    api.getPomodoroState()
+      .then((serverState) => {
+        if (!serverState.active) {
+          localStorage.removeItem('pomodoroState');
+          return;
+        }
+
+        const syncedState: TimerState = {
+          active: true,
+          startedAt: serverState.startedAt ?? null,
+          endsAt: serverState.endsAt ?? null,
+          courseId: serverState.courseId ?? null,
+          topicId: serverState.topicId ?? null,
+          mode: serverState.mode,
+          durationSec: serverState.durationSec,
+          remainingSec: serverState.remainingSec,
+          status: serverState.status ?? 'running',
+        }
+
+        syncTimerState(syncedState)
+
+        if (serverState.expired) {
+          void completeTimer(syncedState)
+          return
+        }
+
+        if (syncedState.status === 'running' && syncedState.remainingSec > 0) {
+          startInterval(syncedState.remainingSec)
+        }
+      })
+      .catch((err) => {
+        console.error('Error syncing pomodoro state:', err)
+        localStorage.removeItem('pomodoroState')
+      })
+  }, [completeTimer, startInterval, syncTimerState]);
 
   const toggleSound = useCallback(() => {
     setPreferences((prev) => ({ ...prev, soundEnabled: !prev.soundEnabled }));
@@ -274,13 +341,24 @@ export function TimerPage() {
         mode,
         durationSec: duration,
         remainingSec: duration,
+        status: response.status ?? 'running',
       };
 
-      setTimer(newState);
-      localStorage.setItem('pomodoroState', JSON.stringify(newState));
+      completionLockRef.current = false;
+      syncTimerState(newState);
       startInterval(duration);
+      toast({
+        title: 'Pomodoro iniciado',
+        description: 'Ahora sí, foco total.',
+        variant: 'info',
+      });
     } catch (err) {
       console.error('Error starting pomodoro:', err);
+      toast({
+        title: 'No pudimos iniciar el Pomodoro',
+        description: err instanceof Error ? err.message : 'Intentá nuevamente.',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -296,7 +374,7 @@ export function TimerPage() {
     }
 
     const duration = MODES.find((m) => m.value === mode)?.duration || MODES[0].duration;
-    setTimer({
+    syncTimerState({
       active: false,
       startedAt: null,
       endsAt: null,
@@ -305,9 +383,77 @@ export function TimerPage() {
       mode,
       durationSec: duration,
       remainingSec: duration,
+      status: 'running',
     });
-    localStorage.removeItem('pomodoroState');
+    toast({
+      title: 'Pomodoro cancelado',
+      description: 'El bloque actual se detuvo sin registrarse como completo.',
+      variant: 'info',
+    });
   };
+
+  const pauseTimer = async () => {
+    if (intervalRef.current) clearInterval(intervalRef.current)
+
+    setIsLoading(true)
+    try {
+      const response = await api.pausePomodoro()
+      syncTimerState({
+        ...timer,
+        active: true,
+        status: 'paused',
+        remainingSec: response.remainingSec,
+      })
+      toast({
+        title: 'Pomodoro en pausa',
+        description: 'Podés retomarlo cuando quieras.',
+        variant: 'info',
+      })
+    } catch (err) {
+      console.error('Error pausing pomodoro:', err)
+      toast({
+        title: 'No pudimos pausar el Pomodoro',
+        description: err instanceof Error ? err.message : 'Intentá nuevamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const resumeTimer = async () => {
+    setIsLoading(true)
+    try {
+      const response = await api.resumePomodoro()
+      const resumedState: TimerState = {
+        active: true,
+        startedAt: response.startedAt ?? timer.startedAt,
+        endsAt: response.endsAt ?? timer.endsAt,
+        courseId: response.courseId ?? timer.courseId,
+        topicId: response.topicId ?? timer.topicId,
+        mode: response.mode,
+        durationSec: response.durationSec,
+        remainingSec: response.remainingSec,
+        status: response.status ?? 'running',
+      }
+      syncTimerState(resumedState)
+      startInterval(response.remainingSec)
+      toast({
+        title: 'Pomodoro reanudado',
+        description: 'Volvemos al foco.',
+        variant: 'info',
+      })
+    } catch (err) {
+      console.error('Error resuming pomodoro:', err)
+      toast({
+        title: 'No pudimos reanudar el Pomodoro',
+        description: err instanceof Error ? err.message : 'Intentá nuevamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -351,7 +497,18 @@ export function TimerPage() {
                 Iniciar
               </Button>
             ) : (
-              <>
+              <div className="flex gap-4">
+                {timer.status === 'running' ? (
+                  <Button variant="outline" size="lg" onClick={pauseTimer} disabled={isLoading}>
+                    <Pause className="h-5 w-5 mr-2" />
+                    Pausar
+                  </Button>
+                ) : (
+                  <Button size="lg" onClick={resumeTimer} disabled={isLoading}>
+                    <Play className="h-5 w-5 mr-2" />
+                    Reanudar
+                  </Button>
+                )}
                 <Button
                   variant="destructive"
                   size="lg"
@@ -361,7 +518,7 @@ export function TimerPage() {
                   <Square className="h-5 w-5 mr-2" />
                   Detener
                 </Button>
-              </>
+              </div>
             )}
           </div>
 

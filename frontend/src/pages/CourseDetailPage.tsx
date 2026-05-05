@@ -14,10 +14,12 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useToast } from '@/contexts/ToastContext';
 import type { Course, Topic } from '@/types';
 import { Plus, ArrowLeft, Trash2, GripVertical, Clock } from 'lucide-react';
 
 export function CourseDetailPage() {
+  const { toast } = useToast();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [course, setCourse] = useState<Course | null>(null);
@@ -43,6 +45,11 @@ export function CourseDetailPage() {
       setTopics(topicsData);
     } catch (err) {
       console.error('Error loading course:', err);
+      toast({
+        title: 'No pudimos cargar el curso',
+        description: err instanceof Error ? err.message : 'Intentá nuevamente.',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -68,8 +75,18 @@ export function CourseDetailPage() {
       setNewTopicMinutes('25');
       setDialogOpen(false);
       await loadData();
+      toast({
+        title: 'Tema creado',
+        description: 'El tema ya quedó asociado al curso.',
+        variant: 'success',
+      });
     } catch (err) {
       console.error('Error creating topic:', err);
+      toast({
+        title: 'No pudimos crear el tema',
+        description: err instanceof Error ? err.message : 'Revisá los datos e intentá otra vez.',
+        variant: 'destructive',
+      });
     } finally {
       setIsCreating(false);
     }
@@ -91,9 +108,19 @@ export function CourseDetailPage() {
     try {
       await api.deleteTopic(deletedTopicId);
       await loadData();
+      toast({
+        title: 'Tema eliminado',
+        description: 'Se quitó correctamente del curso.',
+        variant: 'success',
+      });
     } catch (err) {
       console.error('Error deleting topic:', err);
       await loadData();
+      toast({
+        title: 'No pudimos eliminar el tema',
+        description: err instanceof Error ? err.message : 'Intentá nuevamente.',
+        variant: 'destructive',
+      });
     }
   };
 

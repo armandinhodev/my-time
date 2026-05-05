@@ -14,10 +14,12 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useToast } from '@/contexts/ToastContext';
 import type { Course } from '@/types';
 import { Plus, BookOpen, Trash2, Archive, ArchiveRestore } from 'lucide-react';
 
 export function CoursesPage() {
+  const { toast } = useToast();
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newCourseTitle, setNewCourseTitle] = useState('');
@@ -35,6 +37,11 @@ export function CoursesPage() {
       setCourses(data.items);
     } catch (err) {
       console.error('Error loading courses:', err);
+      toast({
+        title: 'No pudimos cargar los cursos',
+        description: err instanceof Error ? err.message : 'Intentá nuevamente en unos segundos.',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -57,9 +64,19 @@ export function CoursesPage() {
       setNewCourseTitle('');
       setNewCourseDescription('');
       setDialogOpen(false);
-      loadCourses();
+      await loadCourses();
+      toast({
+        title: 'Curso creado',
+        description: 'Ya quedó disponible en tu biblioteca.',
+        variant: 'success',
+      });
     } catch (err) {
       console.error('Error creating course:', err);
+      toast({
+        title: 'No pudimos crear el curso',
+        description: err instanceof Error ? err.message : 'Revisá los datos e intentá otra vez.',
+        variant: 'destructive',
+      });
     } finally {
       setIsCreating(false);
     }
@@ -81,9 +98,19 @@ export function CoursesPage() {
     try {
       await api.deleteCourse(deletedCourseId);
       await loadCourses();
+      toast({
+        title: 'Curso eliminado',
+        description: 'El curso se quitó correctamente.',
+        variant: 'success',
+      });
     } catch (err) {
       console.error('Error deleting course:', err);
       await loadCourses();
+      toast({
+        title: 'No pudimos eliminar el curso',
+        description: err instanceof Error ? err.message : 'Intentá nuevamente.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -91,9 +118,19 @@ export function CoursesPage() {
     try {
       const newStatus = currentStatus === 'archived' ? 'active' : 'archived';
       await api.updateCourse(id, { status: newStatus });
-      loadCourses();
+      await loadCourses();
+      toast({
+        title: newStatus === 'archived' ? 'Curso archivado' : 'Curso reactivado',
+        description: newStatus === 'archived' ? 'Podés volver a activarlo cuando quieras.' : 'Volvió a estar disponible para estudiar.',
+        variant: 'success',
+      });
     } catch (err) {
       console.error('Error toggling archive status:', err);
+      toast({
+        title: 'No pudimos actualizar el curso',
+        description: err instanceof Error ? err.message : 'Intentá nuevamente.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -209,11 +246,23 @@ export function CoursesPage() {
               <CardContent>
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>
-                    {course.completedMinutes} min estudiados
+                    {course.totals.completedMinutes} min estudiados
                   </span>
                   <span className="capitalize">
                     {course.status === 'active' ? 'Activo' : 'Archivado'}
                   </span>
+                </div>
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{course.totals.topicCount} temas</span>
+                    <span>{course.totals.progressPercent}% progreso</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${course.totals.progressPercent}%` }}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>

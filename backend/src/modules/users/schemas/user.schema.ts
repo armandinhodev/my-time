@@ -7,9 +7,12 @@ type ActivePomodoroState = {
   courseId: string;
   topicId?: string | null;
   mode: 'focus' | 'shortBreak' | 'longBreak';
+  status: 'running' | 'paused';
   startedAt: Date;
   endsAt: Date;
   durationSec: number;
+  remainingSec: number;
+  pausedAt?: Date | null;
 };
 
 @Schema({ timestamps: true })
@@ -34,9 +37,12 @@ export class User {
       courseId: { type: String, required: true },
       topicId: { type: String, default: null },
       mode: { type: String, enum: ['focus', 'shortBreak', 'longBreak'], required: true },
+      status: { type: String, enum: ['running', 'paused'], required: true, default: 'running' },
       startedAt: { type: Date, required: true },
       endsAt: { type: Date, required: true },
-      durationSec: { type: Number, required: true, min: 1 }
+      durationSec: { type: Number, required: true, min: 1 },
+      remainingSec: { type: Number, required: true, min: 0 },
+      pausedAt: { type: Date, default: null }
     },
     default: null
   })

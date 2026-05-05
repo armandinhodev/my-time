@@ -14,7 +14,12 @@ export interface Course {
   title: string;
   description?: string;
   status: 'active' | 'archived';
-  completedMinutes: number;
+  totals: {
+    completedMinutes: number;
+    estimatedMinutes: number;
+    progressPercent: number;
+    topicCount: number;
+  };
   createdAt: string;
   updatedAt: string;
   topics?: Topic[];
@@ -42,6 +47,7 @@ export interface PomodoroState {
   mode: PomodoroMode;
   durationSec: number;
   remainingSec: number;
+  status?: 'running' | 'paused';
 }
 
 export interface StudySession {
@@ -59,16 +65,20 @@ export interface StudySession {
 export interface StudySessionStats {
   totalMinutes: number;
   totalSessions: number;
+  todayMinutes: number;
+  weekMinutes: number;
+  monthMinutes: number;
+  attemptedPomodoros: number;
+  completedPomodoros: number;
   byDay: Array<{
     date: string;
     minutes: number;
-    sessions: number;
+    hours: number;
   }>;
   byCourse: Array<{
     courseId: string;
     title: string;
     minutes: number;
-    sessions: number;
   }>;
   completionRate: number;
 }
@@ -120,6 +130,7 @@ export interface StartPomodoroDto {
 export interface CompletePomodoroDto {
   courseId: string;
   topicId?: string;
+  mode: PomodoroMode;
   startedAt: string;
   endedAt: string;
   durationSec: number;
