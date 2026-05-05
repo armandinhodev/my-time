@@ -25,4 +25,3 @@ export class Topic {
 }
 
 export const TopicSchema = SchemaFactory.createForClass(Topic);
-TopicSchema.index({ courseId: 1, order: 1 }, { unique: true });

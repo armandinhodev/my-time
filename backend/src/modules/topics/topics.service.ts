@@ -21,12 +21,19 @@ export class TopicsService {
     await this.coursesService.assertOwned(userId, courseId);
     const courseObjectId = new Types.ObjectId(courseId);
     const userObjectId = new Types.ObjectId(userId);
-    const currentCount = await this.topicModel.countDocuments({ courseId: courseObjectId, userId: userObjectId, deletedAt: null }).exec();
+
+    const lastTopic = await this.topicModel
+      .findOne({ courseId: courseObjectId, userId: userObjectId, deletedAt: null })
+      .sort({ order: -1 })
+      .exec();
+
+    const nextOrder = lastTopic ? lastTopic.order + 1 : 0;
+
     const topic = await this.topicModel.create({
       ...payload,
       courseId: courseObjectId,
       userId: userObjectId,
-      order: payload.order ?? currentCount,
+      order: nextOrder,
       deletedAt: null
     });
     return this.enrich(topic.toObject());
