@@ -1,8 +1,80 @@
 # MyTime
 
+![Monorepo](https://img.shields.io/badge/repo-monorepo-1f2937)
+![Frontend](https://img.shields.io/badge/frontend-React%20%2B%20Vite-149eca)
+![Backend](https://img.shields.io/badge/backend-NestJS-e0234e)
+![Database](https://img.shields.io/badge/database-MongoDB-13aa52)
+![UI](https://img.shields.io/badge/ui-shadcn%2Fui-111827)
+![Docker](https://img.shields.io/badge/runtime-Docker-2496ed)
+![TypeScript](https://img.shields.io/badge/language-TypeScript-3178c6)
+![Status](https://img.shields.io/badge/status-active-success)
+![License](https://img.shields.io/badge/license-private-red)
+
 MyTime is a study tracking application focused on structured learning sessions, course organization, and Pomodoro-based time management.
 
 The project is a monorepo with a React frontend, a NestJS backend, and MongoDB as the primary database.
+
+## At a Glance
+
+- study tracking with courses, topics, and session history
+- Pomodoro workflow with browser notifications and completion sound
+- secure auth with access token + rotating refresh cookie
+- React SPA in front, NestJS API in back, MongoDB underneath
+- Docker-ready local environment
+
+## Quick Start
+
+```bash
+pnpm install
+docker compose up -d --build
+```
+
+Then open:
+
+- app: `http://localhost`
+- API: `http://localhost:3000/api`
+
+## Product Snapshot
+
+MyTime is designed around a simple loop:
+
+1. create a course
+2. break it into topics
+3. run focused Pomodoro sessions
+4. persist sessions and progress
+5. review statistics and keep momentum
+
+## Architecture Preview
+
+```mermaid
+flowchart LR
+    U[User] --> F[React + Vite Frontend]
+    F --> N[Nginx /api proxy]
+    N --> B[NestJS Backend]
+    B --> M[(MongoDB)]
+    F --> L[(LocalStorage)]
+
+    L --> T[Theme preference]
+    L --> P[Pomodoro state]
+    L --> NP[Notification preferences]
+```
+
+## Request Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Backend
+    participant MongoDB
+
+    User->>Frontend: Start Pomodoro / Create Course / Add Topic
+    Frontend->>Backend: Authenticated API request
+    Backend->>MongoDB: Read / write domain data
+    MongoDB-->>Backend: Persisted result
+    Backend-->>Frontend: JSON response
+    Frontend-->>User: Updated UI + local state sync
+```
 
 ## Overview
 
@@ -91,6 +163,14 @@ mytime/
 - completion rate
 - per-course breakdown
 - recent daily activity
+
+## UX Highlights
+
+- archive and reactivate courses without losing their structure
+- confirmation dialogs for destructive actions
+- light and dark theme toggle
+- browser notification and sound preferences for Pomodoro completion
+- automatic API refresh flow for authenticated sessions
 
 ## Local Development
 
