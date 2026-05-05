@@ -255,6 +255,36 @@ docker compose up -d --build
 - `backend` -> NestJS API
 - `frontend` -> Nginx serving React build and proxying `/api`
 
+### Running the frontend container standalone
+
+This project currently serves the frontend as a static Vite build behind Nginx.
+
+That means the frontend does **not** behave like a runtime Node application that reads environment variables dynamically after the container starts.
+
+Current behavior:
+
+- the SPA is built ahead of time
+- API calls use relative `/api` paths
+- in Docker, Nginx proxies `/api` to the backend container
+
+Important consequence:
+
+- if you run the frontend container alone, the UI can load
+- but authenticated features and API-driven screens will fail unless `/api` still points to a real backend
+
+In other words, the frontend currently depends on one of these setups:
+
+1. Docker Compose with the bundled backend service
+2. a reverse proxy that forwards `/api` to a reachable backend
+3. a future refactor that introduces a configurable external API base URL
+
+At the moment, standalone frontend execution is **not fully decoupled** from backend routing.
+
+If you want to run the frontend by itself in production-like environments, the recommended next step is to introduce a configurable API base strategy such as:
+
+- build-time `VITE_API_BASE_URL`
+- or runtime config injection via Nginx/template/config file
+
 ## Workspace Scripts
 
 At root level:
