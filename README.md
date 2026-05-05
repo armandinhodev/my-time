@@ -233,6 +233,20 @@ pnpm dev:frontend
 - backend: `http://localhost:3000`
 - API base: `http://localhost:3000/api`
 
+### Frontend API configuration
+
+The frontend supports a configurable API base URL through:
+
+```env
+VITE_API_BASE_URL=http://localhost:3000/api
+```
+
+Behavior:
+
+- if `VITE_API_BASE_URL` is defined, the React app calls that URL directly
+- if it is not defined, the frontend falls back to `/api`
+- Vite variables are injected at build time, not runtime
+
 ## Docker Setup
 
 The project includes a complete Docker setup for frontend, backend, and MongoDB.
@@ -253,7 +267,7 @@ docker compose up -d --build
 
 - `mongo` -> MongoDB 7
 - `backend` -> NestJS API
-- `frontend` -> Nginx serving React build and proxying `/api`
+- `frontend` -> Nginx serving the React static build
 
 ### Running the frontend container standalone
 
@@ -264,26 +278,26 @@ That means the frontend does **not** behave like a runtime Node application that
 Current behavior:
 
 - the SPA is built ahead of time
-- API calls use relative `/api` paths
-- in Docker, Nginx proxies `/api` to the backend container
+- API calls use `VITE_API_BASE_URL` when defined
+- otherwise API calls fall back to relative `/api` paths
 
 Important consequence:
 
 - if you run the frontend container alone, the UI can load
-- but authenticated features and API-driven screens will fail unless `/api` still points to a real backend
+- and API features will only work if the build was created with a reachable `VITE_API_BASE_URL`
 
 In other words, the frontend currently depends on one of these setups:
 
-1. Docker Compose with the bundled backend service
-2. a reverse proxy that forwards `/api` to a reachable backend
-3. a future refactor that introduces a configurable external API base URL
+1. build the frontend with `VITE_API_BASE_URL` pointing to a real backend
+2. use a reverse proxy that forwards `/api` to a reachable backend when no API base URL is provided
 
-At the moment, standalone frontend execution is **not fully decoupled** from backend routing.
+At the moment, the standalone frontend container is decoupled from the old hardcoded Docker hostname `backend`, but it still needs a valid API target at build time or a proxy fallback.
 
-If you want to run the frontend by itself in production-like environments, the recommended next step is to introduce a configurable API base strategy such as:
+If you want to run the frontend by itself in production-like environments, build it with something like:
 
-- build-time `VITE_API_BASE_URL`
-- or runtime config injection via Nginx/template/config file
+```bash
+docker build --build-arg VITE_API_BASE_URL=https://mytime-api.ardevlabs.com/api -t mytime-frontend ./frontend
+```
 
 ## Workspace Scripts
 
@@ -390,7 +404,7 @@ POMODORO_LONG_BREAK_MINUTES=15
 - theme preference is persisted in localStorage
 - Pomodoro state is persisted in localStorage
 - Pomodoro notification preferences are persisted in localStorage
-- the frontend uses `/api` and relies on Vite proxy locally and Nginx proxy in Docker
+- the frontend uses `VITE_API_BASE_URL` when provided and falls back to `/api` locally
 
 ## Backend Notes
 

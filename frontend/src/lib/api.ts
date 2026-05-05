@@ -1,6 +1,7 @@
 import { AuthResponse, Course, Topic, StudySession, StudySessionStats, CreateCourseDto, UpdateCourseDto, CreateTopicDto, UpdateTopicDto, ReorderTopicsDto, CreateStudySessionDto, StartPomodoroDto, CompletePomodoroDto, PomodoroState } from '@/types';
 
-const API_BASE = '/api';
+const configuredApiBase = import.meta.env.VITE_API_BASE_URL?.trim();
+const API_BASE = (configuredApiBase && configuredApiBase.length > 0 ? configuredApiBase : '/api').replace(/\/$/, '');
 
 class ApiClient {
   private accessToken: string | null = null;
