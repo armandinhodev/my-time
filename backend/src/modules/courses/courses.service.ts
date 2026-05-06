@@ -68,6 +68,7 @@ export class CoursesService {
       title: course.title,
       description: course.description ?? null,
       status: course.status,
+      icon: course.icon ?? null,
       totals: {
         completedMinutes,
         estimatedMinutes,
