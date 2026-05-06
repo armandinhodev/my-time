@@ -19,6 +19,9 @@ export class Course {
 
   @Prop({ type: Object, default: { completedMinutes: 0 } })
   totals!: { completedMinutes: number };
+
+  @Prop({ required: false })
+  icon?: string;
 }
 
 export const CourseSchema = SchemaFactory.createForClass(Course);

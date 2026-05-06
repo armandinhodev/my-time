@@ -17,6 +17,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useToast } from '@/contexts/ToastContext';
 import type { Course, Topic } from '@/types';
 import { Plus, ArrowLeft, Trash2, GripVertical, Clock, Pencil } from 'lucide-react';
+import { iconifyService } from '@/lib/iconify';
 
 export function CourseDetailPage() {
   const { toast } = useToast();
@@ -193,11 +194,25 @@ export function CourseDetailPage() {
         <Button variant="ghost" size="icon" onClick={() => navigate('/courses')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold">{course.title}</h1>
-          {course.description && (
-            <p className="text-muted-foreground">{course.description}</p>
-          )}
+        <div className="flex items-center gap-3">
+          {course.icon && (() => {
+            const parsed = iconifyService.parseIconName(course.icon);
+            return parsed ? (
+              <img
+                src={iconifyService.getIconUrl(parsed.prefix, parsed.name)}
+                alt=""
+                width={36}
+                height={36}
+                className="flex-shrink-0"
+              />
+            ) : null;
+          })()}
+          <div>
+            <h1 className="text-3xl font-bold">{course.title}</h1>
+            {course.description && (
+              <p className="text-muted-foreground">{course.description}</p>
+            )}
+          </div>
         </div>
       </div>
 

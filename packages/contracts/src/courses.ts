@@ -16,6 +16,7 @@ export interface Course {
   title: string;
   description?: string | null;
   status: CourseStatus;
+  icon?: string | null;
   totals: {
     completedMinutes: number;
     estimatedMinutes: number;

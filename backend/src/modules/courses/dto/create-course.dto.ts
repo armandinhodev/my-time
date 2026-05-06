@@ -11,4 +11,8 @@ export class CreateCourseDto {
   @IsOptional()
   @IsEnum(['active', 'archived'])
   status?: 'active' | 'archived';
+
+  @IsOptional()
+  @IsString()
+  icon?: string;
 }

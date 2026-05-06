@@ -14,6 +14,7 @@ export interface Course {
   title: string;
   description?: string;
   status: 'active' | 'archived';
+  icon?: string;
   totals: {
     completedMinutes: number;
     estimatedMinutes: number;
@@ -87,12 +88,14 @@ export interface CreateCourseDto {
   title: string;
   description?: string;
   status?: 'active' | 'archived';
+  icon?: string;
 }
 
 export interface UpdateCourseDto {
   title?: string;
   description?: string;
   status?: 'active' | 'archived';
+  icon?: string;
 }
 
 export interface CreateTopicDto {

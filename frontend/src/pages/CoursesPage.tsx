@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useToast } from '@/contexts/ToastContext';
+import { IconPicker } from '@/components/IconPicker';
+import { iconifyService } from '@/lib/iconify';
 import type { Course } from '@/types';
 import { Plus, BookOpen, Trash2, Archive, ArchiveRestore, Pencil } from 'lucide-react';
 
@@ -24,6 +26,7 @@ export function CoursesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [newCourseTitle, setNewCourseTitle] = useState('');
   const [newCourseDescription, setNewCourseDescription] = useState('');
+  const [newCourseIcon, setNewCourseIcon] = useState<string | undefined>(undefined);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -32,6 +35,7 @@ export function CoursesPage() {
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [editIcon, setEditIcon] = useState<string | undefined>(undefined);
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Confirm dialog state
@@ -67,9 +71,11 @@ export function CoursesPage() {
       await api.createCourse({
         title: newCourseTitle,
         description: newCourseDescription || undefined,
+        icon: newCourseIcon,
       });
       setNewCourseTitle('');
       setNewCourseDescription('');
+      setNewCourseIcon(undefined);
       setDialogOpen(false);
       await loadCourses();
       toast({
@@ -93,6 +99,7 @@ export function CoursesPage() {
     setEditingCourse(course);
     setEditTitle(course.title);
     setEditDescription(course.description || '');
+    setEditIcon(course.icon);
     setEditDialogOpen(true);
   };
 
@@ -105,6 +112,7 @@ export function CoursesPage() {
       await api.updateCourse(editingCourse.id, {
         title: editTitle,
         description: editDescription || undefined,
+        icon: editIcon,
       });
       setEditDialogOpen(false);
       setEditingCourse(null);
@@ -223,6 +231,13 @@ export function CoursesPage() {
                     onChange={(e) => setNewCourseDescription(e.target.value)}
                   />
                 </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Icono (opcional)</label>
+                  <IconPicker
+                    value={newCourseIcon}
+                    onChange={setNewCourseIcon}
+                  />
+                </div>
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={isCreating}>
@@ -252,15 +267,29 @@ export function CoursesPage() {
             <Card key={course.id} className={course.status === 'archived' ? 'opacity-60' : ''}>
               <CardHeader>
                 <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">
-                      <Link to={`/courses/${course.id}`} className="hover:underline">
-                        {course.title}
-                      </Link>
-                    </CardTitle>
-                    {course.description && (
-                      <CardDescription>{course.description}</CardDescription>
-                    )}
+                  <div className="flex items-start gap-3">
+                    {course.icon && (() => {
+                      const parsed = iconifyService.parseIconName(course.icon);
+                      return parsed ? (
+                        <img
+                          src={iconifyService.getIconUrl(parsed.prefix, parsed.name)}
+                          alt=""
+                          width={24}
+                          height={24}
+                          className="mt-1 flex-shrink-0"
+                        />
+                      ) : null;
+                    })()}
+                    <div>
+                      <CardTitle className="text-lg">
+                        <Link to={`/courses/${course.id}`} className="hover:underline">
+                          {course.title}
+                        </Link>
+                      </CardTitle>
+                      {course.description && (
+                        <CardDescription>{course.description}</CardDescription>
+                      )}
+                    </div>
                   </div>
                   <div className="flex gap-1">
                     <Button
@@ -349,6 +378,13 @@ export function CoursesPage() {
                   placeholder="Breve descripción del curso"
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Icono (opcional)</label>
+                <IconPicker
+                  value={editIcon}
+                  onChange={setEditIcon}
                 />
               </div>
             </div>
