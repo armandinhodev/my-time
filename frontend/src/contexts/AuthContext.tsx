@@ -20,22 +20,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initializeAuth = async () => {
       const stored = localStorage.getItem('user');
-      const refreshToken = localStorage.getItem('mytime_refresh_token');
-      console.log('AuthContext init - stored user:', stored ? 'yes' : 'no');
-      console.log('AuthContext init - refresh token:', refreshToken ? 'yes' : 'no');
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
           setUser(parsed);
           api.setAccessToken(null);
-          console.log('AuthContext init - calling api.refresh()...');
           const data = await api.refresh();
-          console.log('AuthContext init - refresh success:', data.user.email);
           if (isMounted.current) {
             setUser(data.user);
           }
-        } catch (error) {
-          console.error('AuthContext init - refresh failed:', error);
+        } catch {
           if (isMounted.current) {
             localStorage.removeItem('user');
             setUser(null);
