@@ -20,7 +20,7 @@ export class AuthController {
   async register(@Body() payload: RegisterDto, @Res({ passthrough: true }) response: Response) {
     const session = await this.authService.register(payload);
     this.setRefreshCookie(response, session.refreshToken);
-    return { user: session.user, accessToken: session.accessToken };
+    return { user: session.user, accessToken: session.accessToken, refreshToken: session.refreshToken };
   }
 
   @Post('login')
@@ -29,7 +29,7 @@ export class AuthController {
   async login(@Body() payload: LoginDto, @Res({ passthrough: true }) response: Response) {
     const session = await this.authService.login(payload);
     this.setRefreshCookie(response, session.refreshToken);
-    return { user: session.user, accessToken: session.accessToken };
+    return { user: session.user, accessToken: session.accessToken, refreshToken: session.refreshToken };
   }
 
   @Post('refresh')
@@ -49,7 +49,7 @@ export class AuthController {
     }
     const session = await this.authService.refresh(user.userId, refreshToken, user.family);
     this.setRefreshCookie(response, session.refreshToken);
-    return { user: session.user, accessToken: session.accessToken };
+    return { user: session.user, accessToken: session.accessToken, refreshToken: session.refreshToken };
   }
 
   @Post('logout')
