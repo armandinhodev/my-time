@@ -53,12 +53,18 @@ export class AuthController {
   }
 
   private setRefreshCookie(response: Response, token: string) {
-    response.cookie(this.configService.get<string>('COOKIE_NAME', 'mytime_refresh'), token, {
+    const cookieOptions: Record<string, unknown> = {
       httpOnly: true,
       secure: this.configService.get<string>('COOKIE_SECURE', 'false') === 'true',
       sameSite: 'lax',
-      domain: this.configService.get<string>('COOKIE_DOMAIN', 'localhost'),
       maxAge: 7 * 24 * 60 * 60 * 1000
-    });
+    };
+    
+    const domain = this.configService.get<string>('COOKIE_DOMAIN');
+    if (domain) {
+      cookieOptions.domain = domain;
+    }
+    
+    response.cookie(this.configService.get<string>('COOKIE_NAME', 'mytime_refresh'), token, cookieOptions);
   }
 }
