@@ -7,6 +7,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { RefreshDto } from './dto/refresh.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
@@ -35,11 +36,18 @@ export class AuthController {
   @HttpCode(200)
   @Throttle({ default: { limit: 15, ttl: 60000 } })
   @UseGuards(AuthGuard('jwt-refresh'))
-  async refresh(@CurrentUser() user: { userId: string; refreshToken: string; family: string }, @Res({ passthrough: true }) response: Response) {
-    if (!user?.refreshToken) {
+  async refresh(
+    @Req() request: Request,
+    @Body() body: RefreshDto,
+    @CurrentUser() user: { userId: string; refreshToken: string; family: string },
+    @Res({ passthrough: true }) response: Response
+  ) {
+    // Si no hay refresh token en la cookie, usar el del body (para localStorage fallback)
+    const refreshToken = user?.refreshToken || body?.refreshToken;
+    if (!refreshToken) {
       throw new UnauthorizedException('Missing refresh token');
     }
-    const session = await this.authService.refresh(user.userId, user.refreshToken, user.family);
+    const session = await this.authService.refresh(user.userId, refreshToken, user.family);
     this.setRefreshCookie(response, session.refreshToken);
     return { user: session.user, accessToken: session.accessToken };
   }

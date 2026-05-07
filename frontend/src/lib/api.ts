@@ -3,6 +3,8 @@ import { AuthResponse, Course, Topic, StudySession, StudySessionStats, CreateCou
 const configuredApiBase = import.meta.env.VITE_API_BASE_URL?.trim();
 const API_BASE = (configuredApiBase && configuredApiBase.length > 0 ? configuredApiBase : '/api').replace(/\/$/, '');
 
+const REFRESH_TOKEN_KEY = 'mytime_refresh_token';
+
 class ApiClient {
   private accessToken: string | null = null;
   private refreshPromise: Promise<void> | null = null;
@@ -11,14 +13,32 @@ class ApiClient {
     this.accessToken = token;
   }
 
+  private getRefreshToken(): string | null {
+    return localStorage.getItem(REFRESH_TOKEN_KEY);
+  }
+
+  private setRefreshToken(token: string | null) {
+    if (token) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+    }
+  }
+
   private async refreshToken(): Promise<void> {
     if (this.refreshPromise) {
       return this.refreshPromise;
     }
 
+    const refreshToken = this.getRefreshToken();
+    
     this.refreshPromise = fetch(`${API_BASE}/auth/refresh`, {
       method: 'POST',
       credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
     })
       .then(async (res) => {
         if (!res.ok) {
@@ -26,6 +46,7 @@ class ApiClient {
         }
         const data: AuthResponse = await res.json();
         this.accessToken = data.accessToken;
+        this.setRefreshToken(data.refreshToken);
         localStorage.setItem('user', JSON.stringify(data.user));
       })
       .finally(() => {
@@ -64,6 +85,7 @@ class ApiClient {
         response = await fetch(url, { ...config, headers });
       } catch {
         this.accessToken = null;
+        this.setRefreshToken(null);
         localStorage.removeItem('user');
         window.location.href = '/login';
         throw new Error('Session expired');
@@ -89,6 +111,7 @@ class ApiClient {
       body: JSON.stringify({ email, password }),
     });
     this.accessToken = data.accessToken;
+    this.setRefreshToken(data.refreshToken);
     localStorage.setItem('user', JSON.stringify(data.user));
     return data;
   }
@@ -99,6 +122,7 @@ class ApiClient {
       body: JSON.stringify({ email, password, name }),
     });
     this.accessToken = data.accessToken;
+    this.setRefreshToken(data.refreshToken);
     localStorage.setItem('user', JSON.stringify(data.user));
     return data;
   }
@@ -106,14 +130,18 @@ class ApiClient {
   async logout(): Promise<void> {
     await this.request<void>('/auth/logout', { method: 'POST' });
     this.accessToken = null;
+    this.setRefreshToken(null);
     localStorage.removeItem('user');
   }
 
   async refresh(): Promise<AuthResponse> {
+    const refreshToken = this.getRefreshToken();
     const data = await this.request<AuthResponse>('/auth/refresh', {
       method: 'POST',
+      body: JSON.stringify({ refreshToken }),
     });
     this.accessToken = data.accessToken;
+    this.setRefreshToken(data.refreshToken);
     localStorage.setItem('user', JSON.stringify(data.user));
     return data;
   }
