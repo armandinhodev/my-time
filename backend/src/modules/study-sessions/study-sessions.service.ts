@@ -83,7 +83,7 @@ export class StudySessionsService {
     }
     const courseIds = Array.from(byCourseMap.keys()).map((courseId) => new Types.ObjectId(courseId));
     const courses = courseIds.length
-      ? await this.courseModel.find({ _id: { $in: courseIds }, userId: new Types.ObjectId(userId) }).select('title').lean().exec()
+      ? await this.courseModel.find({ _id: { $in: courseIds }, userId: new Types.ObjectId(userId), status: 'active' }).select('title').lean().exec()
       : [];
     const courseTitles = new Map(courses.map((course) => [course._id.toString(), course.title]));
     const completionRate = pomodoroStats.attemptedCount
@@ -103,7 +103,8 @@ export class StudySessionsService {
         return { date, minutes, hours: Number((minutes / 60).toFixed(2)) };
       }),
       byCourse: Array.from(byCourseMap.entries())
-        .map(([courseId, minutes]) => ({ courseId, title: courseTitles.get(courseId) ?? 'Curso eliminado', minutes }))
+        .filter(([courseId]) => courseTitles.has(courseId))
+        .map(([courseId, minutes]) => ({ courseId, title: courseTitles.get(courseId)!, minutes }))
         .sort((left, right) => right.minutes - left.minutes)
     };
   }
