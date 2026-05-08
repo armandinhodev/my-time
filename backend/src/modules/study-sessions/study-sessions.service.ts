@@ -37,7 +37,7 @@ export class StudySessionsService {
   }
 
   async list(userId: string, query: QueryStudySessionsDto) {
-    const filter: Record<string, unknown> = { userId };
+    const filter: Record<string, unknown> = { userId: new Types.ObjectId(userId) };
     if (query.courseId) filter.courseId = query.courseId;
     if (query.topicId) filter.topicId = query.topicId;
     if (query.mode) filter.mode = query.mode;
@@ -57,20 +57,20 @@ export class StudySessionsService {
   }
 
   async stats(userId: string) {
-    const sessions = await this.studySessionModel.find({ userId }).lean().exec();
+    const sessions = await this.studySessionModel.find({ userId: new Types.ObjectId(userId) }).lean().exec();
     const pomodoroStats = await this.usersService.getPomodoroStats(userId);
     const now = new Date();
-    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     const weekStart = new Date(dayStart);
-    weekStart.setDate(dayStart.getDate() - dayStart.getDay());
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    weekStart.setUTCDate(dayStart.getUTCDate() - dayStart.getUTCDay());
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
     const totalMinutes = Math.round(sessions.reduce((sum, session) => sum + session.durationSec / 60, 0));
     const countMinutesSince = (date: Date) => Math.round(sessions.filter((session) => new Date(session.startedAt) >= date).reduce((sum, session) => sum + session.durationSec / 60, 0));
     const byCourseMap = new Map<string, number>();
     const byDayMap = new Map<string, number>();
     const dayKeys = Array.from({ length: 7 }, (_, index) => {
       const day = new Date(dayStart);
-      day.setDate(dayStart.getDate() - (6 - index));
+      day.setUTCDate(dayStart.getUTCDate() - (6 - index));
       return day.toISOString().slice(0, 10);
     });
     for (const session of sessions) {
